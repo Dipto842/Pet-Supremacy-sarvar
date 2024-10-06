@@ -29,7 +29,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const petlist = client.db("pet").collection("petlist");
     const mypetlists = client.db("pet").collection("mypetlists");
@@ -38,14 +38,34 @@ async function run() {
     const userInpho = client.db("pet").collection("userInpho");
     const paymentseve = client.db("pet").collection("paymentseve");
 
-  
 
-
+        
+    app.get('/admin', async (req, res) => {
+      const rejer = await userInpho.find().toArray()
+      res.send(rejer)
+    })
+    // admin admin
+    app.get('/admin/:email',async(req,res)=>{
+      const email=req.params.email
+      // console.log('user from verify admin', email)
+      const filtar= {email:email}
+      const result = await userInpho.findOne(filtar)
+      console.log('user from verify admin', result?.role)
+     let admin = false
+if(result){
+admin=result?.role ==='admin'
+}
+console.log(' admin', admin)
+res.send({admin})
+      
+    })
     // jwt token
 
 app.post('/jwt',(req,res)=>{
-  const body = req.body
-  const token = jwt.sign(body,process.env.DB_JWT_SICURITKEY,{
+  const user = req.body
+
+  
+  const token = jwt.sign(user,process.env.DB_JWT_SICURITKEY,{
     expiresIn:'2h'
   })
   res.send({token})
@@ -54,12 +74,22 @@ app.post('/jwt',(req,res)=>{
 // token Verifiy
 const tokenveriy=(req,res,next)=>{
   if(!req.headers.Authorization){
-    return res.state(401).send(alert('forbidden access'))
+    return res.status(401).send({message:'forbidden access'})
   }
 
   const token = req.headers.Authorization.split(' ')[1]
+  
+  jwt.verify(token,process.env.DB_JWT_SICURITKEY,(err,decoded)=>{
+    if(err){
+      return res.status(401).send({message:'formidin access'})
+    }
+    req.decoded=decoded
+    next()
+  })
 }
-    // end jwt
+
+
+// end jwt
 
     app.get('/petlis/:email',async(req,res)=>{
       const emai=req.params.email
@@ -255,18 +285,38 @@ res.send(rejar)
       const data = req.body
       const id = req.params.id
       const filtar= {_id: new ObjectId(id)}
-
+  
       const upinfrom={
       $set:{
         name: data.name,
         maxDonationAmount: data.maxDonationAmount,
         image: data.image,
         donatedAmount: data.donatedAmount,
+        price:old
       }
       }
       const rejar = await Donation.updateOne(filtar,upinfrom)
       res.send(rejar)
     })
+    app.patch('/DonationU/:id',async(req,res)=>{
+      const data = req.body
+      const id = req.params.id
+      const filtar= {_id: new ObjectId(id)}
+ 
+
+
+      const upinfrom={
+      $set:{
+        paymentIntentDate:data.paymentIntentDate,
+        paymentIntentEmail:data.paymentIntentEmail,
+        paymentIntentName:data.paymentIntentName,
+        price:data.price
+      }
+      }
+      const rejar = await Donation.updateOne(filtar,upinfrom)
+      res.send(rejar)
+    })
+
 
     // mack admin 
     app.patch('/admin/:id',async (req,res)=>{
@@ -281,9 +331,12 @@ res.send(rejar)
       res.send(rejar)
     })
 
+
+
     // pemetmethor
     app.post("/create-payment-intent",async(req,res)=>{
       const { price } = req.body
+   
       const amount = parseInt(price *100)
   
       
@@ -304,10 +357,10 @@ res.send(rejar)
       const rejar = await paymentseve.insertOne(body)
       res.send(rejar)
     })
-    app.get('/paymentIntentinph',async(req,res)=>{
-      const rejar = await paymentseve.find().toArray()
-      res.send(rejar)
-    })
+    // app.get('/paymentIntentinph',async(req,res)=>{
+    //   const rejar = await paymentseve.find().toArray()
+    //   res.send(rejar)
+    // })
     // app.get('/paymentIntentinp/:id',async(req,res)=>{
     //   const id = req.params.id
      
@@ -320,8 +373,8 @@ res.send(rejar)
     // })
  
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
